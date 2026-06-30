@@ -276,7 +276,7 @@ def auto_register(
     agent_name = f"{base_name}-{suffix}"
 
     # 4. Try relay registration with owner credentials
-    relay_url = os.environ.get("POSTCAR_RELAY_URL", "").rstrip("/")
+    relay_url = (os.environ.get("POSTCAR_RELAY_URL") or "https://postcar.dev").rstrip("/")
 
     result: Dict[str, Any] = {
         "registered": False,

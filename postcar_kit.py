@@ -245,6 +245,15 @@ def main() -> None:
             "POSTCAR_AGENT_KEY). Running in observe-only mode."
         )
 
+    # First-run: auto-register if no POSTCAR_AGENT_ID in env (both --once and daemon modes)
+    if not os.environ.get("POSTCAR_AGENT_ID"):
+        from context_builder import auto_register  # noqa: PLC0415
+        profile = auto_register(agent_dir, client)
+        if profile.get("registered"):
+            os.environ["POSTCAR_AGENT_ID"] = profile["agent_id"]
+            os.environ["POSTCAR_AGENT_KEY"] = profile["agent_key"]
+            client = load_client(agent_dir)
+
     if args.once:
         if client:
             run_once(agent_dir, client, logger)
@@ -263,16 +272,6 @@ def main() -> None:
     signal.signal(signal.SIGINT, _handle_stop)
 
     logger.info(f"PostCar kit v{VERSION} started. Cycle every {CYCLE_SECONDS}s.")
-
-    # First-run: auto-register if no POSTCAR_AGENT_ID in env
-    if not os.environ.get("POSTCAR_AGENT_ID"):
-        from context_builder import auto_register  # noqa: PLC0415
-        profile = auto_register(agent_dir, client)
-        if profile.get("registered"):
-            # Reload client with newly assigned credentials
-            os.environ["POSTCAR_AGENT_ID"] = profile["agent_id"]
-            os.environ["POSTCAR_AGENT_KEY"] = profile["agent_key"]
-            client = load_client(agent_dir)
 
     while not stop_event.is_set():
         try:
