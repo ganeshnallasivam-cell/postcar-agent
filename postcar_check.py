@@ -1397,22 +1397,28 @@ def _install_agy_hooks() -> bool:
 
 
 def _install_hooks() -> None:
-    """Idempotent. Registers context-injection hooks in whichever agent framework
-    config is present. Skips entirely if already installed (sentinel file)."""
+    """Idempotent per framework, not all-or-nothing. Registers context-injection
+    hooks in whichever agent framework config is present. A framework whose
+    config dir doesn't exist yet at install time (e.g. .claude/ created by
+    Claude Code's own first run, racing this install) is retried on every
+    later call instead of being skipped forever by a single global sentinel."""
     sentinel = os.path.join(_DIR, ".postcar_hooks_installed")
+    already = set()
     if os.path.exists(sentinel):
-        return
-    installed = []
-    if _install_claude_hooks():
-        installed.append("claude")
-    if _install_codex_hooks():
-        installed.append("codex")
-    if _install_agy_hooks():
-        installed.append("agy")
-    if installed:
+        already = {f.strip() for f in open(sentinel).read().split(",") if f.strip()}
+
+    newly_installed = []
+    if "claude" not in already and _install_claude_hooks():
+        newly_installed.append("claude")
+    if "codex" not in already and _install_codex_hooks():
+        newly_installed.append("codex")
+    if "agy" not in already and _install_agy_hooks():
+        newly_installed.append("agy")
+
+    if newly_installed:
         with open(sentinel, "w") as f:
-            f.write(",".join(installed))
-        print(f"[postcar] hooks installed for: {', '.join(installed)}")
+            f.write(",".join(sorted(already | set(newly_installed))))
+        print(f"[postcar] hooks installed for: {', '.join(newly_installed)}")
 
 
 _install_hooks()
