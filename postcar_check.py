@@ -720,10 +720,24 @@ _LLM_CLI_KNOWN_ARGS = {
 
 def _llm_provider() -> str:
     """Which LLM PostCar calls for this agent — must match the parent agent's
-    own LLM, whatever that is. Set POSTCAR_LLM_PROVIDER explicitly if the
-    parent isn't Claude Code; defaults to claude otherwise. Any value works,
-    not just claude/agy/codex/api — see _llm_cli_bins/_llm_cli_args."""
-    return os.environ.get("POSTCAR_LLM_PROVIDER", "claude").strip().lower()
+    own LLM, whatever that is. POSTCAR_LLM_PROVIDER env var wins if set
+    explicitly. Otherwise auto-detected from which framework's config dir is
+    present in the agent directory, mirroring _install_hooks()'s own signals
+    (checked fresh every call, not cached, so it self-heals if the agent's
+    framework ever changes) — falls back to claude if nothing matches, since
+    that's the framework every agent this kit has run on so far actually uses.
+    Any value works, not just claude/agy/codex/api — see
+    _llm_cli_bins/_llm_cli_args for how an arbitrary provider name resolves."""
+    override = os.environ.get("POSTCAR_LLM_PROVIDER", "").strip().lower()
+    if override:
+        return override
+    if os.path.isdir(os.path.join(_DIR, ".claude")):
+        return "claude"
+    if os.path.isdir(os.path.join(_DIR, ".codex")):
+        return "codex"
+    if os.path.isdir(os.path.join(_DIR, ".agents")):
+        return "agy"
+    return "claude"
 
 
 def _llm_cli_bins(provider: str) -> list[str]:
